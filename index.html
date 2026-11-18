@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a GPU Pod lands on a Kubernetes node</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1114;--panel:#151c20;--panel2:#1a2428;--ink:#ecf3ef;--muted:#9caea8;--line:#34433e;--green:#b7f36b;--cyan:#72d9d2;--amber:#ffc56a;--red:#ff7d73;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--sans:Inter,"Segoe UI",Arial,sans-serif}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:radial-gradient(ellipse at 82% 0%,#19312b 0,transparent 38%),var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.45}.page{max-width:1020px;margin:0 auto;padding:34px clamp(18px,4vw,44px) 48px}.topline{display:flex;align-items:center;gap:10px;color:var(--muted);font:11px var(--mono);letter-spacing:.12em;text-transform:uppercase}.pip{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 13px #b7f36b99}.intro{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:28px;align-items:end;margin:24px 0 28px}.intro h1{font-size:clamp(34px,6vw,62px);letter-spacing:-.055em;line-height:.99;margin:0;max-width:700px;font-weight:650}.intro p{margin:15px 0 0;color:#b8c6c0;max-width:670px;font-size:15px}.thesis{border-left:1px solid var(--line);padding:4px 0 4px 16px;color:var(--muted);font:12px/1.65 var(--mono)}.thesis strong{color:var(--cyan);font-weight:500}.board{border:1px solid #2d3a35;background:#101719;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px #0005}.boardhead{display:flex;justify-content:space-between;gap:14px;padding:15px 18px;border-bottom:1px solid #27332f;background:#141c1e;align-items:center}.boardhead h2{font:12px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin:0;color:#d5e2dc}.live{font:11px var(--mono);color:var(--green);display:flex;align-items:center;gap:8px}.live:before{content:"";display:block;width:6px;height:6px;border-radius:50%;background:currentColor}.boardbody{padding:22px 20px 19px}.plainhint{display:flex;flex-wrap:wrap;gap:4px 15px;margin:0 0 16px;color:#b8c6c0;font-size:12px}.plainhint span{display:inline-block}.track{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;position:relative}.track:before{content:"";height:2px;position:absolute;left:7%;right:7%;top:17px;background:#34443f}.trackfill{height:2px;position:absolute;left:7%;top:17px;width:0;background:var(--green);z-index:1;transition:width .65s ease}.step{position:relative;z-index:2;min-width:0}.dot{width:35px;height:35px;border-radius:50%;display:grid;place-items:center;background:#17211f;border:1px solid #42524c;color:#a8b8b1;font:12px var(--mono);transition:.3s}.step.active .dot,.step.done .dot{background:var(--green);border-color:var(--green);color:#13200c;box-shadow:0 0 22px #b7f36b44}.step.blocked .dot{background:#3a1e1d;border-color:var(--red);color:var(--red)}.steptitle{margin-top:11px;font:11px var(--mono);letter-spacing:.04em;color:#e0e9e4}.stepdetail{font-size:11px;line-height:1.45;color:var(--muted);margin-top:5px;max-width:165px}.cite{font:10px var(--mono);color:var(--cyan);text-decoration:none;white-space:nowrap}.cite:hover{text-decoration:underline}.flowarea{margin-top:22px;display:grid;grid-template-columns:1fr 270px;gap:14px;align-items:stretch}.lane{border:1px solid #2c3934;background:#141c1e;border-radius:12px;padding:16px;position:relative;overflow:hidden;min-height:176px}.lanehead{display:flex;justify-content:space-between;gap:10px;align-items:center}.lanehead b{font:11px var(--mono);letter-spacing:.08em;color:var(--cyan);text-transform:uppercase}.lanehead span{font:10px var(--mono);color:var(--muted)}.nodes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.node{padding:12px;border-radius:9px;border:1px solid #34423d;background:#101718;min-height:86px}.node.selected{border-color:#a7db70;background:#182217;box-shadow:inset 0 0 0 1px #a7db7020}.node.rejected{opacity:.45}.node-name{display:flex;justify-content:space-between;gap:6px;font:11px var(--mono)}.node-name em{font-style:normal;color:var(--green)}.node small{display:block;color:var(--muted);font-size:10px;line-height:1.55;margin-top:8px}.node small code{color:#d8e5de}.packet{position:absolute;left:5%;top:59%;width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 16px #b7f36b;opacity:0;z-index:3}.packet.go{opacity:1;animation:travel 1.5s cubic-bezier(.45,.05,.25,1) forwards}@keyframes travel{0%{left:5%;transform:scale(.65)}70%{transform:scale(1.2)}100%{left:76%;transform:scale(1)}}.yaml{border:1px solid #2c3934;background:#0b1011;border-radius:12px;padding:14px;overflow:auto}.yamlhead{display:flex;justify-content:space-between;color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}.yaml pre{margin:0;color:#dce8e1;font:11px/1.7 var(--mono);white-space:pre-wrap}.key{color:var(--cyan)}.value{color:var(--amber)}.yaml .note{margin-top:11px;border-top:1px solid #28342f;padding-top:10px;font-size:10px;color:var(--muted)}.controls{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin-top:14px;padding:14px 16px;border:1px solid #2b3833;border-radius:12px;background:#12191b}.toggles{display:flex;gap:8px;flex-wrap:wrap}.toggle{border:1px solid #3c4b45;background:#17201f;border-radius:7px;padding:8px 10px;color:#cdd8d2;font:10px var(--mono);cursor:pointer;min-height:35px}.toggle[aria-pressed="true"]{border-color:#729c50;color:var(--green);background:#1a2818}.toggle:focus-visible,.run:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.run{background:var(--green);color:#15200e;border:0;border-radius:7px;padding:10px 15px;font:11px var(--mono);font-weight:700;cursor:pointer;min-height:38px}.run:hover{filter:brightness(1.07)}.tryhint{margin:10px 0 0;color:var(--muted);font-size:11px}.verdict{margin-top:8px;display:flex;gap:10px;align-items:flex-start;color:#c4d0ca;font-size:12px;min-height:28px}.verdict .mark{color:var(--green);font:14px var(--mono)}.verdict.fail .mark{color:var(--red)}.verdict strong{color:var(--ink);font-weight:600}.note-line{margin:22px 0 0;padding:15px 18px;border-top:1px solid #2a3732;border-bottom:1px solid #2a3732;display:grid;grid-template-columns:90px 1fr;gap:15px;color:#bdcbc4;font-size:13px}.note-line b{font:10px var(--mono);letter-spacing:.08em;color:var(--amber);text-transform:uppercase;padding-top:3px}.sources{margin-top:24px;color:var(--muted);font-size:10px}.sources h2{font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:#c5d2cc;margin:0 0 8px}.sources ol{margin:0;padding-left:20px;display:grid;gap:5px}.sources a{color:#9bc9bd;text-decoration:none;overflow-wrap:anywhere}.sources a:hover{text-decoration:underline}.foot{margin-top:16px;color:#687972;font:10px var(--mono)}
+@media(max-width:760px){.intro{grid-template-columns:1fr}.thesis{max-width:390px}.flowarea{grid-template-columns:1fr}.track{gap:5px}.boardbody{padding:17px 13px}.stepdetail{font-size:10px}.steptitle{font-size:9px}.controls{grid-template-columns:1fr}.run{justify-self:start}.track:before{left:8%;right:8%}.trackfill{left:8%}.stepdetail{max-width:125px}}@media(max-width:480px){.page{padding:24px 14px 38px}.intro h1{font-size:39px}.track{grid-template-columns:1fr;gap:12px}.track:before,.trackfill{left:17px;right:auto;top:17px;bottom:17px;width:2px;height:auto}.trackfill{height:0;width:2px;transition:height .6s ease}.step{display:grid;grid-template-columns:35px 1fr;column-gap:11px;align-items:start}.dot{grid-row:span 2}.steptitle{margin-top:2px;font-size:11px}.stepdetail{margin-top:3px;max-width:none}.nodes{grid-template-columns:1fr}.note-line{grid-template-columns:1fr;gap:6px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="topline"><span class="pip"></span> Kubernetes scheduling / field guide</div>
+  <header class="intro">
+    <div>
+      <h1>How a GPU Pod<br>finds its node</h1>
+      <p>A GPU Pod needs a node with the right GPU. Its device plugin tells Kubernetes which nodes have one.<a class="cite" href="#s1">[1]</a> The scheduler checks the Pod’s rules and picks a node; then that node’s kubelet, its local helper, connects the GPU to the container.<a class="cite" href="#s5">[5]</a><a class="cite" href="#s1">[1]</a></p>
+    </div>
+    <aside class="thesis"><strong>The handoff</strong><br>Scheduler picks a node.<br>Kubelet connects the GPU.<a class="cite" href="#s5">[5]</a><a class="cite" href="#s1">[1]</a></aside>
+  </header>
+  <section class="board" aria-label="Interactive GPU Pod scheduling sequence">
+    <div class="boardhead"><h2>Follow the Pod, step by step</h2><div class="live" id="live">LIVE TRACE</div></div>
+    <div class="boardbody">
+      <p class="plainhint"><span>Follow the green dot.</span>
+      <span>Kubernetes checks GPU room and the node tag.<a class="cite" href="#s1">[1]</a><a class="cite" href="#s4">[4]</a></span>
+      <span>A “keep out” taint needs matching permission.<a class="cite" href="#s3">[3]</a></span>
+      <span>Then the scheduler picks a node that passed.<a class="cite" href="#s5">[5]</a></span></p>
+      <div class="track" id="track">
+        <div class="trackfill" id="trackfill"></div>
+        <article class="step" data-step="0"><div class="dot">01</div><div class="steptitle">GPU ANNOUNCES</div><div class="stepdetail">The device plugin, a GPU helper, tells Kubernetes what this node has.<a class="cite" href="#s1">[1]</a></div></article>
+        <article class="step" data-step="1"><div class="dot">02</div><div class="steptitle">POD ASKS</div><div class="stepdetail">Pod says which GPU it needs. This example asks for 1.<a class="cite" href="#s2">[2]</a></div></article>
+        <article class="step" data-step="2"><div class="dot">03</div><div class="steptitle">CHECKS RULES</div><div class="stepdetail">Is there room for the GPU? Does the label match? Is the taint allowed?<a class="cite" href="#s1">[1]</a><a class="cite" href="#s3">[3]</a><a class="cite" href="#s4">[4]</a></div></article>
+        <article class="step" data-step="3"><div class="dot">04</div><div class="steptitle">POD LANDS</div><div class="stepdetail">Scheduler picks a node that passed. If none pass, the Pod stays waiting.<a class="cite" href="#s5">[5]</a></div></article>
+        <article class="step" data-step="4"><div class="dot">05</div><div class="steptitle">GPU CONNECTS</div><div class="stepdetail">The kubelet uses the plugin to give the container GPU access.<a class="cite" href="#s1">[1]</a></div></article>
+      </div>
+      <div class="flowarea">
+        <div class="lane">
+          <div class="lanehead"><b>Possible nodes</b><span>example cluster</span></div>
+          <div class="nodes">
+            <div class="node selected" id="gpuNode"><div class="node-name"><span>gpu-node</span><em id="gpuState">possible</em></div><small><code>accelerator=example-gpu-x100</code><br>Kubernetes sees this GPU resource<a class="cite" href="#s1">[1]</a><a class="cite" href="#s2">[2]</a><br><code>dedicated=gpu:NoSchedule</code> (example)</small></div>
+            <div class="node" id="cpuNode"><div class="node-name"><span>other-node</span><em id="cpuState">not chosen</em></div><small>Label does not match<a class="cite" href="#s4">[4]</a><br>or no GPU is free<a class="cite" href="#s1">[1]</a></small></div>
+          </div>
+          <div class="packet" id="packet" aria-hidden="true"></div>
+        </div>
+        <aside class="yaml">
+          <div class="yamlhead"><span>What the Pod asks for</span><span>example</span></div>
+          <pre><span class="key">resources:</span>
+  <span class="key">limits:</span>
+    <span class="value">nvidia.com/gpu: 1</span> <a class="cite" href="#s2">[2]</a>
+<span class="key">nodeSelector:</span>
+  <span class="value">accelerator: example-gpu-x100</span> <a class="cite" href="#s2">[2]</a>
+<span class="key">tolerations:</span>
+- <span class="value">dedicated=gpu:NoSchedule</span> <a class="cite" href="#s3">[3]</a></pre>
+          <div class="note"><strong>A label is a tag.</strong> <code>nodeSelector</code> says “only choose a node with this tag.” A taint is a “keep out” sign; a matching toleration gives the Pod permission to enter, but does not save a GPU.<a class="cite" href="#s3">[3]</a><a class="cite" href="#s4">[4]</a> For GPUs, <code>limits</code> is the ask; if <code>requests</code> is also set, both values must match.<a class="cite" href="#s2">[2]</a></div>
+        </aside>
+      </div>
+      <div class="controls" aria-label="Change the scheduling conditions">
+        <div class="toggles">
+          <button class="toggle" data-control="label" aria-pressed="true">GPU tag matches</button>
+          <button class="toggle" data-control="capacity" aria-pressed="true">GPU available</button>
+          <button class="toggle" data-control="taint" aria-pressed="true">GPU-only rule allowed</button>
+        </div>
+        <button class="run" id="run">Replay steps</button>
+      </div>
+      <p class="tryhint">Try it: switch off one rule, then replay.</p>
+      <div class="verdict" id="verdict" role="status" aria-live="polite"><span class="mark">→</span><span><strong>Ready.</strong> The green dot will show what happens next.</span></div>
+    </div>
+  </section>
+  <div class="note-line"><b>One more thing</b><span>The scheduler only picks the node. After the Pod is assigned, that node’s kubelet asks the GPU plugin to connect the GPU to the container.<a class="cite" href="#s1">[1]</a><a class="cite" href="#s5">[5]</a></span></div>
+  <section class="sources" aria-label="Sources"><h2>Sources</h2><ol>
+    <li id="s1"><a href="https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/" target="_blank" rel="noreferrer">Kubernetes: Device Plugins</a></li>
+    <li id="s2"><a href="https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/" target="_blank" rel="noreferrer">Kubernetes: Schedule GPUs</a></li>
+    <li id="s3"><a href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/" target="_blank" rel="noreferrer">Kubernetes: Taints and Tolerations</a></li>
+    <li id="s4"><a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/" target="_blank" rel="noreferrer">Kubernetes: Assigning Pods to Nodes</a></li>
+    <li id="s5"><a href="https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/" target="_blank" rel="noreferrer">Kubernetes: kube-scheduler</a></li>
+  </ol></section>
+  <div class="foot">The node names and toggles are an illustrative simulation, not a live cluster.</div>
+</main>
+<script>
+(() => {
+  const state = {label:true, capacity:true, taint:true};
+  const steps = [...document.querySelectorAll('.step')];
+  const packet = document.getElementById('packet');
+  const fill = document.getElementById('trackfill');
+  const verdict = document.getElementById('verdict');
+  const gpuNode = document.getElementById('gpuNode');
+  const cpuNode = document.getElementById('cpuNode');
+  const live = document.getElementById('live');
+  let timer;
+  function setProgress(index, blocked=false) {
+    steps.forEach((step,i)=>{
+      step.classList.toggle('active',i===index&&!blocked);
+      step.classList.toggle('done',i<index);
+      step.classList.toggle('blocked',i===index&&blocked);
+    });
+    fill.style.width = `${Math.max(0,Math.min(index,4))*21.5}%`;
+    fill.style.height = '';
+    fill.style.width = `${Math.max(0,Math.min(index,4))*21.5}%`;
+  }
+  function reset(){
+    clearInterval(timer); packet.classList.remove('go'); packet.style.left='5%'; setProgress(-1);
+    gpuNode.classList.remove('selected','rejected'); cpuNode.classList.remove('selected','rejected');
+    document.getElementById('gpuState').textContent='possible'; document.getElementById('cpuState').textContent='not chosen';
+    live.textContent='LIVE TRACE';
+  }
+  function run(){
+    reset();
+    const failed = !state.capacity ? 2 : !state.label ? 2 : !state.taint ? 2 : -1;
+    const reason = !state.capacity ? 'This node has no free GPU.<a class="cite" href="#s1">[1]</a>' : !state.label ? 'This node’s GPU tag does not match the Pod’s choice.<a class="cite" href="#s4">[4]</a>' : !state.taint ? 'This node has a “keep out” rule; the Pod is missing permission to use it.<a class="cite" href="#s3">[3]</a>' : '';
+    live.textContent='CHECKING RULES';
+    packet.classList.add('go');
+    let i=0;
+    setProgress(0);
+    timer=setInterval(()=>{
+      i++;
+      if(failed===i){
+        clearInterval(timer); setProgress(i,true); packet.classList.remove('go');
+        gpuNode.classList.add('rejected'); document.getElementById('gpuState').textContent='not chosen';
+        live.textContent='NO NODE FITS'; verdict.classList.add('fail');
+        verdict.innerHTML=`<span class="mark">×</span><span><strong>Pod still waiting.</strong> ${reason} Change that rule, then replay.</span>`;
+        return;
+      }
+      setProgress(i);
+      if(i===3){gpuNode.classList.add('selected');document.getElementById('gpuState').textContent='chosen';cpuNode.classList.add('rejected');}
+      if(i>=5){
+        clearInterval(timer); packet.classList.remove('go'); live.textContent='POD LANDED'; verdict.classList.remove('fail');
+        verdict.innerHTML='<span class="mark">✓</span><span><strong>Pod lands on gpu-node.</strong> The scheduler picked the node; its kubelet now uses the plugin to give the container GPU access.<a class="cite" href="#s5">[5]</a><a class="cite" href="#s1">[1]</a></span>';
+      }
+    },520);
+    verdict.classList.remove('fail'); verdict.innerHTML='<span class="mark">→</span><span><strong>Checking this node…</strong> The green dot is moving through the rules.</span>';
+  }
+  document.querySelectorAll('[data-control]').forEach(button=>button.addEventListener('click',()=>{
+    const key=button.dataset.control; state[key]=!state[key]; button.setAttribute('aria-pressed',String(state[key]));
+    button.textContent= key==='label' ? `GPU tag ${state[key]?'matches':'does not match'}` : key==='capacity' ? `GPU ${state[key]?'available':'not available'}` : `GPU-only rule ${state[key]?'allowed':'blocks Pod'}`;
+    reset(); verdict.classList.remove('fail'); verdict.innerHTML='<span class="mark">→</span><span><strong>Rule changed.</strong> Replay to see if the Pod can still land.</span>';
+  }));
+  document.getElementById('run').addEventListener('click',run);
+  setTimeout(run,650);
+})();
+</script>
+<!--
+Sources:
+[1] https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins — Kubernetes Device Plugins
+[2] https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus — Kubernetes Schedule GPUs
+[3] https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration — Kubernetes Taints and Tolerations
+[4] https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node — Kubernetes Assigning Pods to Nodes
+[5] https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler — Kubernetes Scheduler
+-->
+</body>
+</html>
